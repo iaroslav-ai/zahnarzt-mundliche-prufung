@@ -1,26 +1,26 @@
-import { useEffect, useState } from "react";
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
+import { useEffect, useState, useRef } from "react";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 
-const client = generateClient<Schema>();
-
 function App() {
+  const initialState = "Generate new question"
+
   const { user, signOut } = useAuthenticator();
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+  const [question, setQuestion] = useState("");
   const [transcript, setTranscript] = useState("");
+  const [evaluation, setEvaluation] = useState("");
+  const [indicator, setIndicator] = useState(initialState);
+  const startedRef = useRef(false);
 
   async function startTranscription() {
     try {
-      setTranscript("");
       
       const session = await fetchAuthSession();
       const transcribe = new TranscribeStreamingClient({
-        region: 'us-east-1',
+        region: 'eu-central-1',
         credentials: session.credentials
       });
   
@@ -78,14 +78,11 @@ function App() {
   }
 
   useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
-
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
-  }
+    if (user && !startedRef.current) {
+      startedRef.current = true;
+      startTranscription();
+    }
+  }, [user]);
 
   async function speakText(text: string) {
     const session = await fetchAuthSession();
@@ -114,36 +111,48 @@ function App() {
     }
   }
 
+  async function getNewQuestion() {
+    const newQuestion = 'Welche am meisten populäre Restaurationsmöglichkeiten gibt es? Bitte ausreichende Details anzeigen'
+    setQuestion(newQuestion)
+    setIndicator('Please answer the question')
+    setTranscript('')
+    setEvaluation('')
+    speakText(newQuestion)
+  }
+
+  async function submitAnswer() {
+    console.log(transcript)
+    setTranscript('')
+    setQuestion('')
+    setIndicator('Question complete, evaluation available.')
+    setEvaluation('Examiner evaluation.')
+  }
+
   return (
     <main>
       <p>Hello {user?.signInDetails?.loginId}!</p>
       <h1>Mündliche Prüfung Simulation</h1>
       <p>
-        What to do:  <br></br>
-        * Click on the 'create question' button to generate a question and start recording of your answer. <br></br>
         * Speak your answer into the microphone as if you are in the exam. <br></br>
         * Once you are finished answering, click on 'Submit answer'. <br></br>
-        * Our AI will review your answer, and provde feedback to you. <br></br> 
-      </p>
-      <button onClick={startTranscription}>Transcribe</button>
-
-      <p>
-        <button onClick={() => speakText('Welche am meisten populäre Restaurationsmöglichkeiten gibt es? Bitte ausreichende Details anzeigen')}>
-          🔊 Get question to answer
-        </button>
+        * AI will review your answer and provde feedback. <br></br> 
       </p>
 
       <hr></hr>
-      <button onClick={createTodo}>Get question to answer</button>
-      <p><b>Question:</b> Welche am meisten populäre Restaurationsmöglichkeiten gibt es?</p>
-      <button>Submit answer</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
+      <button onClick={getNewQuestion}>New question</button>
+
+      <p>
+      <button disabled={question.length === 0} onClick={() => speakText(question)}>
+        🔊 Ask examiner to repeat
+      </button>
+      </p>
+
+      <p><b>Status: </b> {indicator}</p>
+      <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
+      <hr></hr>
+      <button disabled={evaluation.length === 0}>Load evaluation</button>
+      <hr></hr>
       <button onClick={signOut}>Sign out</button>
-      <p>{transcript}</p>
     </main>
   );
 }
