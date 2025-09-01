@@ -13,7 +13,11 @@ const backend = defineBackend({
 // Add Polly permissions to authenticated users
 backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
   new PolicyStatement({
-    actions: ['polly:SynthesizeSpeech'],
+    actions: [
+      'polly:SynthesizeSpeech',
+      'transcribe:StartStreamTranscription',
+      'transcribe:StartStreamTranscriptionWebSocket',
+    ],
     resources: ['*'],
   })
 );

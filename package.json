@@ -12,8 +12,8 @@
   "dependencies": {
     "@aws-amplify/predictions": "^6.1.61",
     "@aws-amplify/ui-react": "^6.5.5",
+    "@aws-sdk/client-transcribe-streaming": "^3.879.0",
     "aws-amplify": "^6.15.5",
-    "microphone-stream": "^6.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
