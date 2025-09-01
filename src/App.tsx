@@ -3,7 +3,7 @@ import type { Schema } from "../amplify/data/resource";
 import { generateClient } from "aws-amplify/data";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
-import { TranscribeStreamingClient, StartStreamTranscriptionCommand, MediaEncoding } from "@aws-sdk/client-transcribe-streaming";
+import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 
@@ -12,13 +12,10 @@ const client = generateClient<Schema>();
 function App() {
   const { user, signOut } = useAuthenticator();
   const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
-
-  const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
 
   async function startTranscription() {
     try {
-      setIsRecording(true);
       setTranscript("");
       
       const session = await fetchAuthSession();
@@ -67,10 +64,12 @@ function App() {
       const response = await transcribe.send(command);
       
       for await (const event of response.TranscriptResultStream!) {
-        const transcript = event.TranscriptEvent?.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-        if (transcript) {
-          console.log(transcript);
-          setTranscript(prev => prev + " " + transcript);
+        const result = event.TranscriptEvent?.Transcript?.Results?.[0];
+        const localTranscript = result?.Alternatives?.[0]?.Transcript;
+
+        if (result?.IsPartial === false) {
+          console.log(localTranscript);
+          setTranscript(prev => prev + " " + localTranscript);
         }
       }
     } catch (error) {
@@ -144,6 +143,7 @@ function App() {
         ))}
       </ul>
       <button onClick={signOut}>Sign out</button>
+      <p>{transcript}</p>
     </main>
   );
 }
