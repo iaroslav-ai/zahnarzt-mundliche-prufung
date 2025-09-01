@@ -37,16 +37,16 @@ function App() {
     });
   
     const response = await polly.send(command);
-    
-    console.log("Got response from Polly")
 
-    // Fix: Convert stream to array buffer first
-    const audioStream = response.AudioStream;
-    const audioBuffer = await audioStream?.transformToByteArray();
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
-    
-    const audio = new Audio(URL.createObjectURL(audioBlob));
-    audio.play();
+    if (response.AudioStream) {
+      console.log("Got response from Polly")
+      const audioBuffer = await response.AudioStream.transformToByteArray();
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+      const audio = new Audio(URL.createObjectURL(audioBlob));
+      audio.play();
+    } else {
+      console.log("Got null response from Polly!")
+    }
   }
 
   return (
@@ -62,7 +62,7 @@ function App() {
       </p>
 
       <p>
-        <button onClick={() => speakText('Welche am meisten populäre Restaurationsmöglichkeiten gibt es?')}>
+        <button onClick={() => speakText('Welche am meisten populäre Restaurationsmöglichkeiten gibt es? Bitte ausreichende Details anzeigen')}>
           🔊 Get question to answer
         </button>
       </p>
