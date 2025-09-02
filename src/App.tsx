@@ -3,6 +3,7 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 
 
 function App() {
@@ -15,8 +16,35 @@ function App() {
   const [indicator, setIndicator] = useState(initialState);
   const startedRef = useRef(false);
 
+  async function callBedrock(prompt: string, modelId = 'eu.anthropic.claude-sonnet-4-20250514-v1:0') {
+    const session = await fetchAuthSession();
+    const bedrock = new BedrockRuntimeClient({
+      region: 'eu-central-1',
+      credentials: session.credentials
+    });
+  
+    const command = new ConverseCommand({
+      modelId: modelId,
+      messages: [
+        {
+          role: "user",
+          content: [{ text: prompt }]
+        }
+      ],
+      inferenceConfig: {
+        maxTokens: 1000,
+        temperature: 0.7
+      }
+    });
+  
+    const response = await bedrock.send(command);
+    return response.output?.message?.content?.[0]?.text || '';
+  }
+
   async function startTranscription() {
     try {
+      
+
       
       const session = await fetchAuthSession();
       const transcribe = new TranscribeStreamingClient({
@@ -122,37 +150,42 @@ function App() {
 
   async function submitAnswer() {
     console.log(transcript)
-    setTranscript('')
     setQuestion('')
+    setIndicator('Evaluating response...')
+    const feedback = await callBedrock(`Examiner asked this question: ${question} \n\nReview this student answer: ${transcript} `);
+    console.log(feedback)
     setIndicator('Question complete, evaluation available.')
-    setEvaluation('Examiner evaluation.')
+    setEvaluation(`Your transcript: ${transcript} \n\n AI feedback: ${feedback} `)
+    setTranscript('')
   }
 
   return (
     <main>
-      <p>Hello {user?.signInDetails?.loginId}!</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p>Hello {user?.signInDetails?.loginId}!</p>
+        <a onClick={signOut} href="#">Sign out</a>
+      </div>
+
       <h1>Mündliche Prüfung Simulation</h1>
       <p>
-        * Speak your answer into the microphone as if you are in the exam. <br></br>
-        * Once you are finished answering, click on 'Submit answer'. <br></br>
-        * AI will review your answer and provde feedback. <br></br> 
+        Speak your answer into the microphone as if you are in the exam. Once you are finished answering, click on 'Submit answer'. AI will review your answer and provde feedback. <br></br> 
       </p>
 
       <hr></hr>
-      <button onClick={getNewQuestion}>New question</button>
 
-      <p>
-      <button disabled={question.length === 0} onClick={() => speakText(question)}>
-        🔊 Ask examiner to repeat
-      </button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+        <button onClick={getNewQuestion}>New question</button>
+        <button disabled={question.length === 0} onClick={() => speakText(question)}> 🔊 Ask examiner to repeat </button>
+        <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
+      </div>
+
+      <p> Transcript length: {transcript.length} </p>
+      <p><b>Status: </b> {indicator} </p>
+      <hr></hr>
+      
+      <p style={{whiteSpace: 'pre-wrap'}}>
+        {evaluation  + evaluation + evaluation }
       </p>
-
-      <p><b>Status: </b> {indicator}</p>
-      <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
-      <hr></hr>
-      <button disabled={evaluation.length === 0}>Load evaluation</button>
-      <hr></hr>
-      <button onClick={signOut}>Sign out</button>
     </main>
   );
 }

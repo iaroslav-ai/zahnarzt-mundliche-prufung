@@ -17,6 +17,8 @@ backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
       'polly:SynthesizeSpeech',
       'transcribe:StartStreamTranscription',
       'transcribe:StartStreamTranscriptionWebSocket',
+      'bedrock:InvokeModel',
+      'bedrock:InvokeModelWithResponseStream'
     ],
     resources: ['*'],
   })
