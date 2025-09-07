@@ -4,6 +4,7 @@ import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
+import data from './questions.json'
 
 
 function App() {
@@ -13,17 +14,17 @@ function App() {
   const [ question, setQuestion ] = useState("");
   const [ conversation, setConversation ] = useState("");
   const [ transcript, setTranscript ] = useState("");
-  const [ evaluation, setEvaluation ] = useState("");
+  const [ evaluation, setEvaluation ] = useState("Evaluation will appear here.");
   const [ indicator, setIndicator ] = useState(initialState);
+  const [ context, setContext ] = useState("");
+  const [ reference, setReference ] = useState("");
   const startedRef = useRef(false);
 
-  const examinerQuestion = 'Bitte erklären Sie den Unterschied zwischen einer Gingivitis und einer Parodontitis'
-  const transcribeNotice = "Note: dentist responses text was obtained using Amazon Transcribe from audio of dentist speaking. Some of the text may not be correctly interpreted from the audio - e.g. 'Gengiva' can become 'mir gegenüber', please ignore such parts.";
-  const evaluationCriteria = `
-Gingivitis = reversible Entzündung des marginalen Zahnfleisches, verursacht durch Plaque.
-Parodontitis = chronische Entzündung des Zahnhalteapparates (inkl. Alveolarknochen), führt unbehandelt zu Attachment- und Knochenverlust, irreversibel`
+  const transcribeNotice = "Very important: dentist responses text was obtained using Amazon Transcribe from audio of dentist speaking. Some of the text may not be correctly interpreted from the audio - e.g. 'Gengiva' can become 'mir gegenüber', please ignore such parts. Please if the sentence looks weird with out of context words, try to see if it can be explained by bad transcription.";
 
   async function callBedrock(prompt: string, modelId = 'eu.anthropic.claude-sonnet-4-20250514-v1:0') {
+    console.log(prompt)
+
     const session = await fetchAuthSession();
     const bedrock = new BedrockRuntimeClient({
       region: 'eu-central-1',
@@ -182,7 +183,15 @@ ${transcribeNotice}
   }
 
   async function getNewQuestion() {
+    const selectData = data[Math.floor(Math.random() * data.length)];        
+    const examinerQuestion = selectData['question']
+    
+    console.log(selectData)
+
     setQuestion(examinerQuestion)
+    setContext(selectData['context'])
+    setReference(selectData['reference'])
+    
     setIndicator('Please answer the question')
     setTranscript('')
     setEvaluation('')
@@ -203,7 +212,7 @@ ${transcribeNotice}
 
     console.log(`Got follow up: ${followup}`)
 
-    const updatedConversation = conversation + '\n\n' + `Examiner: ${question}\n\nStudent: ${transcript}`;
+    const updatedConversation = conversation + '\n\n' + `Examiner: ${question}\n\nDentist: ${transcript}`;
     setConversation(updatedConversation);
     setQuestion(followup)
 
@@ -221,7 +230,7 @@ ${updatedConversation}
 </conversation>
 You have some materials available for you to evaluate the dentist:
 <evaluation_materials>
-${evaluationCriteria}
+${context}
 </evaluation_materials>
 
 I want you to first think in <think> tag if the dentist has knowledge that matches that of equivalent German dentist at time of university graduation. Think through what were strong parts of dentist response, and what could be improved. See if there are some patterns in dentist response that indicate systemic issues.
@@ -236,7 +245,7 @@ ${transcribeNotice}
       );
       console.log(`Evaluatoin output: ${aiEval}`);
       setIndicator('Question complete, evaluation available.')
-      setEvaluation(`Your transcript: ${updatedConversation} \n\n AI feedback: ${aiEval} `)
+      setEvaluation(aiEval)
       setTranscript('')
     }
   }
@@ -260,14 +269,35 @@ ${transcribeNotice}
         <button disabled={question.length === 0} onClick={() => speakText(question)}> 🔊 Ask examiner to repeat </button>
         <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
       </div>
+      
+      <br></br>
 
-      <p> Transcript length: {transcript.length} </p>
+      <details>
+        <summary>Question</summary> {question}
+      </details>
+
+      <details>
+        <summary>Transcript, length: {transcript.length} </summary> {transcript}
+      </details>
+
+      <details>
+        <summary>Reference information</summary> {reference}
+      </details>
+
       <p><b>Status: </b> {indicator} </p>
       <hr></hr>
-      
+
+      <details>
+        <summary>Conversation</summary>
+        <p style={{whiteSpace: 'pre-wrap'}}>
+          {conversation}
+        </p>
+      </details>
+
       <p style={{whiteSpace: 'pre-wrap'}}>
         {evaluation}
       </p>
+
     </main>
   );
 }
