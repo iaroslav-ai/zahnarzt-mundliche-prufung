@@ -12,6 +12,7 @@ function App() {
 
   const { user, signOut } = useAuthenticator();
   const [ question, setQuestion ] = useState("");
+  const [ answer, setAnswer ] = useState("");
   const [ conversation, setConversation ] = useState("");
   const [ transcript, setTranscript ] = useState("");
   const [ evaluation, setEvaluation ] = useState("Evaluation will appear here.");
@@ -40,12 +41,12 @@ function App() {
         }
       ],
       inferenceConfig: {
-        maxTokens: 1000,
-        temperature: 0.7
+        maxTokens: 4000,
       }
     });
   
     const response = await bedrock.send(command);
+    console.log(response)
     return response.output?.message?.content?.[0]?.text || '';
   }
 
@@ -54,7 +55,7 @@ function App() {
     return match ? match[1].trim() : '';
   }   
 
-  async function examinerNextAction(convo: string, examiner_question: string, student_response: string) {
+  async function examinerNextAction(convo: string, examiner_question: string, student_response: string, context: string, reference: string) {
     const feedback = await callBedrock(`
 You are a German professor who conducts an oral approbation exam for a dentist from another country, who wants to get permit to work in Germany.
 Your task is to ensure that the dentist has knowledge that matches knowledge of German dentist.
@@ -71,9 +72,23 @@ The dentist's response was:
 ${student_response}
 </dentist_response>
 Your task is to decide if you want to ask a follow up question or not. 
+
+Your follow up question - if you decide to ask it - should be STRICTLY based on information given in this excerpt from authoritative teaching material for dentists:
+<authoritative_source_excerpt>
+${context}
+</authoritative_source_excerpt>
+In particular, you originally wanted to focus on this subset:
+<focused_excerpt>
+${reference}
+</focused_excerpt>
+
 You should ask a follow up questions if you think that will help you gauge how well does the dentist responds.
 That could happen for example if you feel the question was too easy for the dentist, or too hard.
-Strictly avoid asking more than 2 follow up questions to the dentist as you do not have much time for the exam, and there is lots to cover.
+
+Strictly avoid asking more than 2 follow up questions to the dentist as you do not have much time for the exam, and there is lots to cover. Your main intent was to ask about information that is given in the <focused_excerpt> text. If that is well covered by the student, you can maybe ask one question to challenge the student, or you can also skip - choose at random for good coverage case.
+
+Strictly base your questions only on information in <authoritative_source_excerpt> tag. You want to ensure that you base your question on authoritative information in the excerpt, to avoid hallucinating information that is outside of this excerpt. 
+
 Ask any (follow up) questions in a way that does not hint at an answer. You should not implicitly help dentist pass the exam.
 
 First, I want you to think through in <think> tag reasons to ask follow up questions, and reasons not to. Then, I want you to brainstorm what follow up questions you may ask. 
@@ -190,11 +205,13 @@ ${transcribeNotice}
 
     setQuestion(examinerQuestion)
     setContext(selectData['context'])
+    setAnswer(selectData['answer'])
     setReference(selectData['reference'])
     
     setIndicator('Please answer the question')
     setTranscript('')
     setEvaluation('')
+    setConversation('')
 
     speakText(examinerQuestion)
   }
@@ -204,10 +221,13 @@ ${transcribeNotice}
 
     setQuestion('')
     setIndicator('Deciding next action...')
+
     const followup = await examinerNextAction(
       conversation,
       question,
-      transcript
+      transcript,
+      context,
+      reference
     )
 
     console.log(`Got follow up: ${followup}`)
@@ -235,7 +255,9 @@ ${context}
 
 I want you to first think in <think> tag if the dentist has knowledge that matches that of equivalent German dentist at time of university graduation. Think through what were strong parts of dentist response, and what could be improved. See if there are some patterns in dentist response that indicate systemic issues.
 
-Then I want you to produce <evaluation> tag, where you should provide details to the student where answer of student was not sufficient. I want you to cite exact statement / sentence that student said, and provide information on how that statement should be changed to be improved.
+Trust information in <evaluation_materials> more than 
+
+Then I want you to produce <evaluation> tag, where you should provide details to the student where answer of student was not sufficient. I want you to cite exact statement / sentence that student said, and provide information on how that statement should be changed to be correct or be improved. Please keep evaluation concise and to the point.
 
 Finally, I want you to output <pass_mark> tag, where you can specify two values: PASS or FAIL, which indicates if student answer at the level of a German student or not. 
 
@@ -277,11 +299,19 @@ ${transcribeNotice}
       </details>
 
       <details>
+        <summary>Example answer</summary> {answer}
+      </details>
+
+      <details>
         <summary>Transcript, length: {transcript.length} </summary> {transcript}
       </details>
 
       <details>
         <summary>Reference information</summary> {reference}
+      </details>
+
+      <details>
+        <summary>Context information</summary> {context}
       </details>
 
       <p><b>Status: </b> {indicator} </p>
