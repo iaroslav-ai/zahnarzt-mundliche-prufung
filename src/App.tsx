@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
-import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import data from './questions.json'
@@ -20,6 +19,8 @@ function App() {
   const [ context, setContext ] = useState("");
   const [ reference, setReference ] = useState("");
   const startedRef = useRef(false);
+
+  const recognitionRef = useRef<any>(null);
 
   const transcribeNotice = "Very important: dentist responses text was obtained using Amazon Transcribe from audio of dentist speaking. Some of the text may not be correctly interpreted from the audio - e.g. 'Gengiva' can become 'mir gegenüber', please ignore such parts. Please if the sentence looks weird with out of context words, try to see if it can be explained by bad transcription.";
 
@@ -102,71 +103,29 @@ ${transcribeNotice}
       return parseAnswerTag(feedback);
   }
 
-  async function startTranscription() {
-    try {
-      const session = await fetchAuthSession();
-      const transcribe = new TranscribeStreamingClient({
-        region: 'eu-central-1',
-        credentials: session.credentials
-      });
-  
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new AudioContext({ sampleRate: 16000 });
-      const audioInput = audioContext.createMediaStreamSource(stream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      
-      const audioChunks: Int16Array[] = [];
-      
-      processor.onaudioprocess = (e) => {
-        const float32Array = e.inputBuffer.getChannelData(0);
-        const int16Array = new Int16Array(float32Array.length);
-        for (let i = 0; i < float32Array.length; i++) {
-          int16Array[i] = Math.max(-32768, Math.min(32767, Math.floor(float32Array[i] * 32768)));
-        }
-        audioChunks.push(int16Array);
-      };
-  
-      audioInput.connect(processor);
-      processor.connect(audioContext.destination);
-  
-      // Create streaming generator
-      async function* audioStream() {
-        while (true) {
-          if (audioChunks.length > 0) {
-            const chunk = audioChunks.shift()!;
-            yield { AudioEvent: { AudioChunk: new Uint8Array(chunk.buffer) } };
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-  
-      const command = new StartStreamTranscriptionCommand({
-        LanguageCode: 'de-DE',
-        MediaEncoding: 'pcm',
-        MediaSampleRateHertz: 16000,
-        AudioStream: audioStream()
-      });
-  
-      const response = await transcribe.send(command);
-      
-      for await (const event of response.TranscriptResultStream!) {
-        const result = event.TranscriptEvent?.Transcript?.Results?.[0];
-        const localTranscript = result?.Alternatives?.[0]?.Transcript;
+  async function launchTextToSpeech() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const rec = new SR();
+    recognitionRef.current = rec;
 
-        if (result?.IsPartial === false) {
-          console.log(localTranscript);
-          setTranscript(prev => prev + " " + localTranscript);
-        }
+    rec.lang = "de-DE";
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.onresult = (e) => {
+      const newTranscript = [...e.results].map(r => r[0].transcript).join(" ");
+      setTranscript(newTranscript);
+    };
+    rec.onend = () => {
+      if (recognitionRef.current !== null) {
+        submitAnswer()
       }
-    } catch (error) {
-      console.error('Transcription error:', error);
-    }
+    };
+    rec.start();
   }
 
   useEffect(() => {
     if (user && !startedRef.current) {
       startedRef.current = true;
-      startTranscription();
     }
   }, [user]);
 
@@ -191,6 +150,11 @@ ${transcribeNotice}
       const audioBuffer = await response.AudioStream.transformToByteArray();
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
       const audio = new Audio(URL.createObjectURL(audioBlob));
+
+      audio.onended = () => {
+        launchTextToSpeech();
+      };
+
       audio.play();
     } else {
       console.log("Got null response from Polly!")
@@ -217,6 +181,12 @@ ${transcribeNotice}
   }
 
   async function submitAnswer() {
+    if (recognitionRef.current) {
+      const currentaudio = recognitionRef.current
+      recognitionRef.current = null;
+      currentaudio.stop();
+    }
+
     console.log(transcript)
 
     setQuestion('')
