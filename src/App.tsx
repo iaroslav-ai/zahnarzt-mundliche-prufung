@@ -111,7 +111,7 @@ ${transcribeNotice}
     rec.lang = "de-DE";
     rec.interimResults = true;
     rec.continuous = true;
-    rec.onresult = (e) => {
+    rec.onresult = (e: any) => {
       const newTranscript = [...e.results].map(r => r[0].transcript).join(" ");
       setTranscript(newTranscript);
     };
