@@ -3,17 +3,31 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
-import data from './questions.json'
+import questions_abrechnung from './questions-abrechnung.json'
+import questions_hygiene from './questions-hygiene-antworten.json'
+import questions_radiology from './questions-radiology.json'
+import questions_zahnerhaltung from './questions-zahnerhaltung.json'
+import questions_recht from './questions-recht.json'
 
 
 function App() {
   const initialState = "Generate new question"
+  const defaultQuestionType = "zahnerhaltung"
+
+  const questionTypes = {
+    [defaultQuestionType]: questions_zahnerhaltung,
+    "abrechnung": questions_abrechnung,
+    "hygiene": questions_hygiene,
+    "radiology": questions_radiology,
+    "recht": questions_recht
+  }
 
   const { user, signOut } = useAuthenticator();
   const [ question, setQuestion ] = useState("");
   const [ answer, setAnswer ] = useState("");
   const [ conversation, setConversation ] = useState("");
   const [ transcript, setTranscript ] = useState("");
+  const [ questionType, setQuestionType ] = useState(defaultQuestionType);
   const [ evaluation, setEvaluation ] = useState("Evaluation will appear here.");
   const [ indicator, setIndicator ] = useState(initialState);
   const [ context, setContext ] = useState("");
@@ -162,9 +176,10 @@ ${transcribeNotice}
   }
 
   async function getNewQuestion() {
-    const selectData = data[Math.floor(Math.random() * data.length)];        
+    const chosenQuestions = questionTypes[questionType as keyof typeof questionTypes]
+    const selectData = chosenQuestions[Math.floor(Math.random() * chosenQuestions.length)];
     const examinerQuestion = selectData['question']
-    
+  
     console.log(selectData)
 
     setQuestion(examinerQuestion)
@@ -257,11 +272,22 @@ ${transcribeNotice}
       <hr></hr>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-        <button onClick={getNewQuestion}>New question</button>
-        <button disabled={question.length === 0} onClick={() => speakText(question)}> 🔊 Ask examiner to repeat </button>
-        <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
+        <select 
+        value={questionType}
+        onChange={(e) => setQuestionType(e.target.value)}
+        style={{ padding: '5px' }}
+      >
+        {Object.keys(questionTypes).map((type) => (
+          <option key={type} value={type}>
+            {type.charAt(0).toUpperCase() + type.slice(1)}
+          </option>
+        ))}
+      </select>
+
+      <button onClick={getNewQuestion}>New question</button>
+      <button disabled={question.length === 0} onClick={submitAnswer}>Submit</button>
       </div>
-      
+
       <br></br>
 
       <details>
@@ -297,6 +323,7 @@ ${transcribeNotice}
       <p style={{whiteSpace: 'pre-wrap'}}>
         {evaluation}
       </p>
+
 
     </main>
   );
