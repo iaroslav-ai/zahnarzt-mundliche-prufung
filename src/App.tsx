@@ -3,24 +3,12 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
-import questions_abrechnung from './questions-abrechnung.json'
-import questions_hygiene from './questions-hygiene-antworten.json'
-import questions_radiology from './questions-radiology.json'
-import questions_zahnerhaltung from './questions-zahnerhaltung.json'
-import questions_recht from './questions-recht.json'
+import questionsBank from './questions.json'
 
 
 function App() {
   const initialState = "Generate new question"
   const defaultQuestionType = "zahnerhaltung"
-
-  const questionTypes = {
-    [defaultQuestionType]: questions_zahnerhaltung,
-    "abrechnung": questions_abrechnung,
-    "hygiene": questions_hygiene,
-    "radiology": questions_radiology,
-    "recht": questions_recht
-  }
 
   const { user, signOut } = useAuthenticator();
   const [ question, setQuestion ] = useState("");
@@ -176,7 +164,7 @@ ${transcribeNotice}
   }
 
   async function getNewQuestion() {
-    const chosenQuestions = questionTypes[questionType as keyof typeof questionTypes]
+    const chosenQuestions = questionsBank[questionType as keyof typeof questionsBank] as any;
     const selectData = chosenQuestions[Math.floor(Math.random() * chosenQuestions.length)];
     const examinerQuestion = selectData['question']
   
@@ -277,7 +265,7 @@ ${transcribeNotice}
         onChange={(e) => setQuestionType(e.target.value)}
         style={{ padding: '5px' }}
       >
-        {Object.keys(questionTypes).map((type) => (
+        {Object.keys(questionsBank).map((type) => (
           <option key={type} value={type}>
             {type.charAt(0).toUpperCase() + type.slice(1)}
           </option>
