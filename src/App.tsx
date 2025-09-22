@@ -85,16 +85,13 @@ In particular, you originally wanted to focus on this subset:
 ${reference}
 </focused_excerpt>
 
-You should ask a follow up questions if you think that will help you gauge how well does the dentist responds.
-That could happen for example if you feel the question was too easy for the dentist, or too hard.
+You can ask up to 2 follow up questions if you feel the answer from the student is insufficient or lacking. Strictly avoid asking more than 2 follow up questions to the dentist as you do not have much time for the exam, and there is lots to cover. Your main intent was to ask about information that is given in the <focused_excerpt> text. Ask follow up questions if you feel answer from the student insufficiently covers that information, or the student may have unintentionally specified wrong answer. Do not make up new questions that go beyond scope of <focused_excerpt> information, as that could then be a different question.
 
-Strictly avoid asking more than 2 follow up questions to the dentist as you do not have much time for the exam, and there is lots to cover. Your main intent was to ask about information that is given in the <focused_excerpt> text. If that is well covered by the student, you can maybe ask one question to challenge the student, or you can also skip - choose at random for good coverage case.
-
-Strictly base your questions only on information in <authoritative_source_excerpt> tag. You want to ensure that you base your question on authoritative information in the excerpt, to avoid hallucinating information that is outside of this excerpt. 
+Strictly base your questions or any follow ups only on information in <focused_excerpt>, and if necessary supported by <authoritative_source_excerpt> tag. You want to ensure that you base your question on authoritative information in the excerpt, to avoid hallucinating information that is outside of this excerpt. 
 
 Ask any (follow up) questions in a way that does not hint at an answer. You should not implicitly help dentist pass the exam.
 
-First, I want you to think through in <think> tag reasons to ask follow up questions, and reasons not to. Then, I want you to brainstorm what follow up questions you may ask. 
+First, I want you to think through in <think> tag reasons to ask follow up questions, and reasons not to. If you think that follow up question is needed, also think through what are options for most appropriate follow up question.
 
 Then produce result in <answer> tag. Produce answer tag with empty content (<answer></answer>) if you do not want to ask any follow up questions. Otherwise put the follow up question in <answer> tag. 
 
