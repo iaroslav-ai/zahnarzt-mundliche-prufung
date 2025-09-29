@@ -87,9 +87,9 @@ ${reference}
 
 You can ask up to 2 follow up questions if you feel the answer from the student is insufficient or lacking. Strictly avoid asking more than 2 follow up questions to the dentist as you do not have much time for the exam, and there is lots to cover. Your main intent was to ask about information that is given in the <focused_excerpt> text. Ask follow up questions if you feel answer from the student insufficiently covers that information, or the student may have unintentionally specified wrong answer. Do not make up new questions that go beyond scope of <focused_excerpt> information, as that could then be a different question.
 
-Strictly base your questions or any follow ups only on information in <focused_excerpt>, and if necessary supported by <authoritative_source_excerpt> tag. You want to ensure that you base your question on authoritative information in the excerpt, to avoid hallucinating information that is outside of this excerpt. 
+Strictly base your questions or any follow ups only on information in <focused_excerpt>, and if necessary supported by <authoritative_source_excerpt> tag. You want to ensure that you base your question on authoritative information in the excerpt, to avoid hallucinating information that is outside of this excerpt. Try to also stay close to the original question, and not venture into other questions that might be orthrogonal to the original question.
 
-Ask any (follow up) questions in a way that does not hint at an answer. You should not implicitly help dentist pass the exam.
+Ask follow up questions in a way that does not hint at an answer. You should not implicitly help dentist pass the exam.
 
 First, I want you to think through in <think> tag reasons to ask follow up questions, and reasons not to. If you think that follow up question is needed, also think through what are options for most appropriate follow up question.
 
@@ -180,12 +180,16 @@ ${transcribeNotice}
     speakText(examinerQuestion)
   }
 
-  async function submitAnswer() {
+  async function stopRecording() {
     if (recognitionRef.current) {
       const currentaudio = recognitionRef.current
       recognitionRef.current = null;
       currentaudio.stop();
     }
+  }
+
+  async function submitAnswer() {
+    stopRecording()
 
     console.log(transcript)
 
@@ -223,7 +227,7 @@ You have some materials available for you to evaluate the dentist:
 ${context}
 </evaluation_materials>
 
-I want you to first think in <think> tag if the dentist has knowledge that matches that of equivalent German dentist at time of university graduation. Think through what were strong parts of dentist response, and what could be improved. See if there are some patterns in dentist response that indicate systemic issues.
+I want you to first think in <think> tag if the dentist has knowledge that matches that of equivalent German dentist at time of university graduation. Think through what were strong parts of dentist response, and what could be improved. See if there are some patterns in dentist response that indicate systemic issues. Be sure to take into account that a human dentist may not remember all the exact precise facts and numbers, but should keep in mind information relevant to practicing dentistry.
 
 Trust information in <evaluation_materials> more than 
 
@@ -240,6 +244,11 @@ ${transcribeNotice}
       setEvaluation(aiEval)
       setTranscript('')
     }
+  }
+
+  function handleTranscriptChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    stopRecording()
+    setTranscript(e.target.value);
   }
 
   return (
@@ -284,7 +293,13 @@ ${transcribeNotice}
       </details>
 
       <details>
-        <summary>Transcript, length: {transcript.length} </summary> {transcript}
+        <summary>Transcript, length: {transcript.length} </summary>
+        <textarea
+          value={transcript}
+          onChange={handleTranscriptChange}
+          style={{ width: '100%', padding: '5px', height: '400px' }}
+        />
+
       </details>
 
       <details>
